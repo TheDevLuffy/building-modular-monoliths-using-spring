@@ -1,13 +1,23 @@
 package monoliths;
 
-import monoliths.catalogs.CatalogContextConfiguration;
-import monoliths.catalogs.CatalogFixtures;
-import monoliths.catalogs.domain.entity.CategoryRepository;
-import monoliths.catalogs.domain.entity.Product;
-import monoliths.catalogs.domain.entity.ProductRepository;
-import monoliths.catalogs.domain.entity.SkuRepository;
-import monoliths.catalogs.domain.usecase.Catalogs;
-import monoliths.catalogs.domain.usecase.Inventory;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.UUID;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.RestTemplate;
+
 import monoliths.commons.model.DeliveryLocation;
 import monoliths.commons.model.DeliveryMethod;
 import monoliths.commons.model.OrderSheet;
@@ -21,38 +31,31 @@ import monoliths.shipments.ShipmentContextConfiguration;
 import monoliths.shipments.domain.entity.Delivery;
 import monoliths.shipments.domain.entity.DeliveryStatus;
 import monoliths.shipments.domain.usecase.Deliveries;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
-
-import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.UUID;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest(classes = {
         CustomerBuyingFlowIntegrationTests.CustomerBuyingFlowIntegrationTestConfiguration.class
 })
 class CustomerBuyingFlowIntegrationTests {
 
-    @Autowired Catalogs catalogs;
-    @Autowired Inventory inventory;
     @Autowired Orders orders;
     @Autowired OrderProcessing orderProcessing;
     @Autowired Deliveries deliveries;
+    @Autowired RestTemplate restTemplate;
+
+    MockRestServiceServer mockCatalogService;
+
+    @BeforeEach
+    void init() {
+        mockCatalogService = MockRestServiceServer.createServer(restTemplate);
+    }
 
     @Test
     void simple() {
-        Product product = catalogs.getProductByCode(CatalogFixtures.SIMPLE_PRODUCT_CODE);
+        UUID productId = UUID.randomUUID();
 
         OrderSheet orderSheet = OrderSheet.builder()
                 .customerId(UUID.randomUUID())
-                .items(Arrays.asList(OrderSheetItem.builder().productId(product.getId()).quantity(2).build()))
+                .items(Arrays.asList(OrderSheetItem.builder().productId(productId).quantity(2).build()))
                 .deliveryMethod(DeliveryMethod.INSTANTLY)
                 .deliveryLocation(DeliveryLocation.builder()
                         .postCode("63364")
@@ -81,12 +84,12 @@ class CustomerBuyingFlowIntegrationTests {
     }
 
     @Configuration
-    @Import({ CatalogContextConfiguration.class, OrderContextConfiguration.class, ShipmentContextConfiguration.class })
+    @Import({ OrderContextConfiguration.class, ShipmentContextConfiguration.class })
     static class CustomerBuyingFlowIntegrationTestConfiguration {
 
         @Bean
-        CatalogFixtures catalogFixtures(CategoryRepository categoryRepository, ProductRepository productRepository, SkuRepository skuRepository) {
-            return new CatalogFixtures(categoryRepository, productRepository, skuRepository);
+        public RestTemplate restTemplate() {
+            return new RestTemplateBuilder().build();
         }
 
     }

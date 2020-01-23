@@ -1,25 +1,26 @@
-package monoliths.orders.integrate;
+package monoliths.orders.integrate.http;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 
 import lombok.AllArgsConstructor;
-import monoliths.catalogs.domain.entity.Product;
-import monoliths.catalogs.domain.entity.ProductRepository;
-import monoliths.catalogs.domain.usecase.Catalogs;
-import monoliths.commons.SystemException;
+import lombok.Data;
 import monoliths.commons.model.OrderSheet;
 import monoliths.orders.domain.entity.OrderProduct;
 import monoliths.orders.domain.entity.OrderProductItem;
 import monoliths.orders.domain.entity.OrderProductMapper;
-import org.springframework.stereotype.Component;
-
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
 
 @AllArgsConstructor
 @Component
-class OrderCatalogsService implements OrderProductMapper {
+class HttpOrderCatalogsService implements OrderProductMapper {
 
-    private Catalogs catalogs;
+    private RestTemplate restTemplate;
 
     @Override
     public List<OrderProduct> mapFrom(List<OrderSheet.OrderSheetItem> orderSheetItems) {
@@ -30,21 +31,39 @@ class OrderCatalogsService implements OrderProductMapper {
                                     .productItemId(productItem.getId())
                                     .productItemName(productItem.getName())
                                     .productItemPrice(productItem.getPrice())
-                                    .productItemSkuId(productItem.getSku().getId())
+                                    .productItemSkuId(productItem.getSkuId())
                                     .build()).collect(Collectors.toList());
 
             return OrderProduct.builder()
                                .productId(product.getId())
                                .productName(product.getName())
                                .productItems(productItems)
-                               .price(product.calculatePrice())
+                               .price(product.getPrice())
                                .quantity(orderSheetItem.getQuantity())
                                .build();
         }).collect(Collectors.toList());
     }
 
     private Product getProductFor(OrderSheet.OrderSheetItem item) {
-        return catalogs.getProduct(item.getProductId());
+        return restTemplate.getForObject("http://catalogs-service/product/{id}", Product.class, item.getProductId());
+    }    
+    
+    @Data
+    class Product {
+        private UUID id;
+        private String code;
+        private String name;
+        private BigDecimal price;
+        private Set<ProductItem> items;
     }
 
+    @Data
+    class ProductItem {
+        private UUID id;
+        private String name;
+        private BigDecimal price;
+        private boolean base;
+        private UUID skuId;
+    }
+    
 }

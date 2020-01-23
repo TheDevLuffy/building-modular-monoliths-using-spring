@@ -5,7 +5,6 @@ buildscript {
     }
 
     repositories {
-        maven { url 'http://repo.spring.io/plugins-release' }
         maven { url "https://plugins.gradle.org/m2/" }
         mavenCentral()
     }
@@ -69,16 +68,18 @@ project(':commons') {
 }
 
 project(':catalogs') {
+    apply plugin: 'org.springframework.boot'
+
     dependencies {
         compile project(':commons')
 
-        implementation 'org.springframework:spring-webmvc'
+        implementation 'org.springframework.boot:spring-boot-starter-web'
         implementation 'org.springframework.boot:spring-boot-autoconfigure'
 
         testImplementation('org.springframework.boot:spring-boot-starter-test') {
             exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
         }
-    }
+    }    
 }
 
 project(':orders') {
@@ -111,7 +112,6 @@ project(':modular-monoliths') {
     apply plugin: 'org.springframework.boot'
 
     dependencies {
-        compile project(':catalogs')
         compile project(':orders')
         compile project(':shipments')
 
